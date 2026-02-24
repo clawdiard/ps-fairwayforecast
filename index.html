@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FairwayForecast — Golf Weather & Course Conditions</title>
+<meta name="description" content="Golf-specific weather, course conditions & tee time planning for Longboat Key and Sarasota area courses.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⛳</text></svg>">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#0a0f1a;--surface:#111827;--surface2:#1a2332;--border:#1e2d3d;--text:#e2e8f0;--muted:#8899aa;--accent:#2dd4bf;--accent2:#38bdf8;--gold:#f59e0b;--green:#22c55e;--red:#ef4444;--orange:#f97316}
+body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased}
+.container{max-width:1200px;margin:0 auto;padding:20px}
+header{text-align:center;padding:40px 20px 30px;border-bottom:1px solid var(--border)}
+header h1{font-size:2.2rem;font-weight:700;letter-spacing:-.02em;margin-bottom:6px}
+header h1 span{color:var(--accent)}
+header p{color:var(--muted);font-size:1rem}
+.hero-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;margin:30px 0}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;text-align:center;transition:transform .2s}
+.stat-card:hover{transform:translateY(-2px)}
+.stat-card .icon{font-size:2rem;margin-bottom:8px}
+.stat-card .value{font-size:1.8rem;font-weight:700;color:var(--accent)}
+.stat-card .label{font-size:.8rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-top:4px}
+.section-title{font-size:1.3rem;font-weight:600;margin:36px 0 16px;padding-left:12px;border-left:3px solid var(--accent)}
+.golf-index{background:linear-gradient(135deg,#0f1f2e,#1a2940);border:1px solid var(--border);border-radius:16px;padding:30px;margin:24px 0;display:flex;align-items:center;gap:30px;flex-wrap:wrap}
+.golf-index .gauge{width:140px;height:140px;position:relative;flex-shrink:0}
+.golf-index .gauge svg{transform:rotate(-90deg)}
+.golf-index .gauge-text{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.golf-index .gauge-text .score{font-size:2.4rem;font-weight:800;color:var(--accent)}
+.golf-index .gauge-text .out-of{font-size:.75rem;color:var(--muted)}
+.golf-index .details{flex:1;min-width:200px}
+.golf-index .details h3{font-size:1.2rem;margin-bottom:12px;color:var(--accent)}
+.factor-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05)}
+.factor-row:last-child{border:none}
+.factor-row .name{color:var(--muted);font-size:.9rem}
+.factor-row .bar-wrap{width:100px;height:6px;background:rgba(255,255,255,.1);border-radius:3px;margin:0 12px}
+.factor-row .bar{height:100%;border-radius:3px;transition:width .8s ease}
+.factor-row .val{font-size:.85rem;font-weight:600;min-width:30px;text-align:right}
+.courses-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px;margin:16px 0}
+.course-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:22px;transition:transform .2s,border-color .2s}
+.course-card:hover{transform:translateY(-2px);border-color:var(--accent)}
+.course-card .name{font-size:1.1rem;font-weight:600;margin-bottom:4px}
+.course-card .type{font-size:.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:14px}
+.course-card .conditions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.cond-item{background:var(--surface2);border-radius:8px;padding:10px 12px}
+.cond-item .cond-label{font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.cond-item .cond-val{font-size:1rem;font-weight:600;margin-top:2px}
+.course-card .rating{display:flex;align-items:center;gap:8px;margin-top:14px;padding-top:12px;border-top:1px solid var(--border)}
+.rating-badge{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;font-size:.8rem;font-weight:600}
+.rating-excellent{background:rgba(34,197,94,.15);color:var(--green)}
+.rating-good{background:rgba(45,212,191,.15);color:var(--accent)}
+.rating-fair{background:rgba(249,158,11,.15);color:var(--gold)}
+.rating-poor{background:rgba(239,68,68,.15);color:var(--red)}
+.hourly-timeline{display:flex;gap:0;overflow-x:auto;padding:16px 0;-webkit-overflow-scrolling:touch;scrollbar-width:thin}
+.hourly-timeline::-webkit-scrollbar{height:4px}
+.hourly-timeline::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.hour-slot{min-width:72px;text-align:center;padding:14px 8px;border-right:1px solid rgba(255,255,255,.03);transition:background .2s}
+.hour-slot:hover{background:rgba(45,212,191,.05)}
+.hour-slot .time{font-size:.7rem;color:var(--muted);margin-bottom:6px}
+.hour-slot .temp{font-size:1.1rem;font-weight:700}
+.hour-slot .icon2{font-size:1.4rem;margin:6px 0}
+.hour-slot .wind{font-size:.75rem;color:var(--muted)}
+.hour-slot .golf-ok{font-size:.65rem;padding:2px 6px;border-radius:8px;margin-top:6px;display:inline-block}
+.golf-yes{background:rgba(34,197,94,.15);color:var(--green)}
+.golf-maybe{background:rgba(249,158,11,.15);color:var(--gold)}
+.golf-no{background:rgba(239,68,68,.15);color:var(--red)}
+.forecast-days{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin:16px 0}
+.day-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;text-align:center;transition:transform .2s}
+.day-card:hover{transform:translateY(-2px)}
+.day-card .day-name{font-size:.85rem;font-weight:600;margin-bottom:2px}
+.day-card .day-date{font-size:.7rem;color:var(--muted);margin-bottom:10px}
+.day-card .day-icon{font-size:2rem;margin-bottom:8px}
+.day-card .day-temps{font-size:1rem;font-weight:600}
+.day-card .day-temps span{color:var(--muted);font-weight:400}
+.day-card .day-wind{font-size:.78rem;color:var(--muted);margin-top:6px}
+.day-card .day-golf{margin-top:8px}
+.sunrise-bar{background:linear-gradient(90deg,#1a1a3e,#f59e0b33,#38bdf833,#f59e0b33,#1a1a3e);border:1px solid var(--border);border-radius:12px;padding:20px 24px;margin:16px 0;display:flex;justify-content:space-between;align-items:center}
+.sunrise-bar .sun-item{text-align:center}
+.sunrise-bar .sun-icon{font-size:1.8rem}
+.sunrise-bar .sun-time{font-size:1.1rem;font-weight:600;margin-top:4px}
+.sunrise-bar .sun-label{font-size:.7rem;color:var(--muted);text-transform:uppercase}
+.tee-rec{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:22px;margin:16px 0}
+.tee-rec h3{font-size:1rem;font-weight:600;margin-bottom:12px;color:var(--accent)}
+.tee-slot{display:flex;align-items:center;gap:16px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.04)}
+.tee-slot:last-child{border:none}
+.tee-slot .tee-time{font-size:1.1rem;font-weight:700;min-width:70px}
+.tee-slot .tee-info{flex:1}
+.tee-slot .tee-info .tee-why{font-size:.85rem;color:var(--muted)}
+.tee-slot .tee-score{font-weight:700;font-size:1rem}
+footer{text-align:center;padding:40px 20px;color:var(--muted);font-size:.78rem;border-top:1px solid var(--border);margin-top:40px}
+@media(max-width:600px){
+ header h1{font-size:1.6rem}
+ .golf-index{flex-direction:column;align-items:center;text-align:center}
+ .courses-grid{grid-template-columns:1fr}
+ .hero-stats{grid-template-columns:repeat(2,1fr)}
+}
+</style>
+</head>
+<body>
+<header>
+<h1>⛳ Fairway<span>Forecast</span></h1>
+<p>Golf Weather & Course Conditions — Longboat Key &amp; Sarasota</p>
+</header>
+<div class="container">
+
+<div class="hero-stats" id="heroStats"></div>
+
+<div class="section-title">Golf Playability Index</div>
+<div class="golf-index" id="golfIndex"></div>
+
+<div class="section-title">Sunrise & Sunset — Golden Hour Windows</div>
+<div class="sunrise-bar" id="sunBar"></div>
+
+<div class="section-title">Recommended Tee Times</div>
+<div class="tee-rec" id="teeRec"></div>
+
+<div class="section-title">Hourly Golf Forecast</div>
+<div class="hourly-timeline" id="hourly"></div>
+
+<div class="section-title">7-Day Outlook</div>
+<div class="forecast-days" id="forecast"></div>
+
+<div class="section-title">Course Conditions</div>
+<div class="courses-grid" id="courses"></div>
+
+</div>
+<footer>
+FairwayForecast — Real-time golf intelligence for Longboat Key &amp; Sarasota<br>
+Data refreshes on page load &bull; Weather via Open-Meteo API
+</footer>
+
+<script>
+const COURSES = [
+  {name:"Longboat Key Club — Harbourside",type:"Resort • 18 Holes",par:72,yards:6792,lat:27.3950,lon:-82.6610},
+  {name:"Longboat Key Club — Islandside",type:"Resort • 18 Holes",par:72,yards:6890,lat:27.4050,lon:-82.6700},
+  {name:"The Founders Club",type:"Private • 18 Holes",par:72,yards:7234,lat:27.2980,lon:-82.3640},
+  {name:"University Park CC",type:"Semi-Private • 27 Holes",par:72,yards:6919,lat:27.3560,lon:-82.4780},
+  {name:"Laurel Oak CC — East",type:"Private • 18 Holes",par:72,yards:7122,lat:27.2720,lon:-82.4220},
+  {name:"TPC Prestancia — Stadium",type:"Private • 18 Holes",par:72,yards:7019,lat:27.2850,lon:-82.4560},
+  {name:"Sara Bay CC",type:"Private • 18 Holes",par:71,yards:6657,lat:27.3380,lon:-82.5450},
+  {name:"The Resort at Longboat Key",type:"Resort • 18 Holes",par:72,yards:6800,lat:27.4120,lon:-82.6550},
+  {name:"Misty Creek CC",type:"Semi-Private • 18 Holes",par:72,yards:6836,lat:27.2600,lon:-82.3900},
+  {name:"Bent Tree CC",type:"Private • 18 Holes",par:72,yards:6755,lat:27.3120,lon:-82.4650}
+];
+
+const LAT=27.395,LON=-82.661;
+
+async function fetchWeather(){
+  const url=`https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&hourly=temperature_2m,relative_humidity_2m,precipitation_probability,precipitation,wind_speed_10m,wind_gusts_10m,weather_code,uv_index,cloud_cover&daily=temperature_2m_max,temperature_2m_min,sunrise,sunset,precipitation_probability_max,wind_speed_10m_max,weather_code,uv_index_max&temperature_unit=fahrenheit&wind_speed_unit=mph&precipitation_unit=inch&timezone=America/New_York&forecast_days=7`;
+  const r=await fetch(url);
+  return r.json();
+}
+
+function wxIcon(code){
+  if(code<=1)return'☀️';if(code<=3)return'⛅';if(code<=48)return'🌫️';
+  if(code<=55)return'🌦️';if(code<=65)return'🌧️';if(code<=67)return'🌨️';
+  if(code<=77)return'🌨️';if(code<=82)return'🌧️';if(code<=86)return'❄️';
+  if(code<=99)return'⛈️';return'🌤️';
+}
+
+function golfScore(temp,wind,precip_prob,humidity,uv){
+  let s=100;
+  if(temp<55)s-=(55-temp)*1.5;else if(temp>95)s-=(temp-95)*2;
+  if(wind>20)s-=(wind-20)*2;else if(wind>12)s-=(wind-12)*.8;
+  if(precip_prob>60)s-=(precip_prob-60)*.8;else if(precip_prob>30)s-=(precip_prob-30)*.3;
+  if(humidity>85)s-=(humidity-85)*.5;
+  if(uv>9)s-=(uv-9)*3;
+  return Math.max(0,Math.min(100,Math.round(s)));
+}
+
+function ratingClass(s){return s>=80?'excellent':s>=60?'good':s>=40?'fair':'poor'}
+function ratingLabel(s){return s>=80?'Excellent':s>=60?'Good':s>=40?'Fair':'Poor'}
+
+function renderHeroStats(h,nowIdx){
+  const temp=Math.round(h.temperature_2m[nowIdx]);
+  const wind=Math.round(h.wind_speed_10m[nowIdx]);
+  const precip=h.precipitation_probability[nowIdx];
+  const uv=h.uv_index[nowIdx];
+  document.getElementById('heroStats').innerHTML=`
+    <div class="stat-card"><div class="icon">🌡️</div><div class="value">${temp}°F</div><div class="label">Temperature</div></div>
+    <div class="stat-card"><div class="icon">💨</div><div class="value">${wind} mph</div><div class="label">Wind Speed</div></div>
+    <div class="stat-card"><div class="icon">🌧️</div><div class="value">${precip}%</div><div class="label">Rain Chance</div></div>
+    <div class="stat-card"><div class="icon">☀️</div><div class="value">${uv.toFixed(1)}</div><div class="label">UV Index</div></div>
+  `;
+}
+
+function renderGolfIndex(h,nowIdx){
+  const t=h.temperature_2m[nowIdx],w=h.wind_speed_10m[nowIdx],p=h.precipitation_probability[nowIdx],hu=h.relative_humidity_2m[nowIdx],u=h.uv_index[nowIdx];
+  const score=golfScore(t,w,p,hu,u);
+  const rc=ratingClass(score);
+  const colors={excellent:'#22c55e',good:'#2dd4bf',fair:'#f59e0b',poor:'#ef4444'};
+  const c=colors[rc];
+  const circ=2*Math.PI*56;
+  const offset=circ-(score/100)*circ;
+  const factors=[
+    {name:'Temperature',val:Math.min(100,Math.max(0,100-Math.abs(t-75)*2))},
+    {name:'Wind',val:Math.min(100,Math.max(0,100-w*2.5))},
+    {name:'Rain Risk',val:100-p},
+    {name:'Humidity',val:Math.min(100,Math.max(0,100-(hu>60?(hu-60)*1.5:0)))},
+    {name:'UV Comfort',val:Math.min(100,Math.max(0,100-(u>5?(u-5)*10:0)))}
+  ];
+  document.getElementById('golfIndex').innerHTML=`
+    <div class="gauge">
+      <svg width="140" height="140"><circle cx="70" cy="70" r="56" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="10"/>
+      <circle cx="70" cy="70" r="56" fill="none" stroke="${c}" stroke-width="10" stroke-dasharray="${circ}" stroke-dashoffset="${offset}" stroke-linecap="round"/></svg>
+      <div class="gauge-text"><div class="score">${score}</div><div class="out-of">/ 100</div></div>
+    </div>
+    <div class="details">
+      <h3>${ratingLabel(score)} Conditions</h3>
+      ${factors.map(f=>{
+        const fc=f.val>=70?'var(--green)':f.val>=40?'var(--gold)':'var(--red)';
+        return `<div class="factor-row"><span class="name">${f.name}</span><div class="bar-wrap"><div class="bar" style="width:${f.val}%;background:${fc}"></div></div><span class="val">${f.val}</span></div>`;
+      }).join('')}
+    </div>`;
+}
+
+function renderSunBar(d){
+  const rise=new Date(d.sunrise[0]).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+  const set=new Date(d.sunset[0]).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+  const golden1=new Date(new Date(d.sunrise[0]).getTime()+45*60000).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+  const golden2=new Date(new Date(d.sunset[0]).getTime()-60*60000).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+  document.getElementById('sunBar').innerHTML=`
+    <div class="sun-item"><div class="sun-icon">🌅</div><div class="sun-time">${rise}</div><div class="sun-label">Sunrise</div></div>
+    <div class="sun-item"><div class="sun-icon">🌄</div><div class="sun-time">${golden1}</div><div class="sun-label">First Light Tee</div></div>
+    <div class="sun-item"><div class="sun-icon">⛳</div><div class="sun-time">${golden2}</div><div class="sun-label">Golden Hour Start</div></div>
+    <div class="sun-item"><div class="sun-icon">🌇</div><div class="sun-time">${set}</div><div class="sun-label">Sunset</div></div>`;
+}
+
+function renderTeeRec(h,d){
+  const sunrise=new Date(d.sunrise[0]);
+  const sunset=new Date(d.sunset[0]);
+  const now=new Date();
+  const slots=[];
+  for(let i=0;i<24;i++){
+    const dt=new Date(h.time[i]);
+    if(dt<sunrise||dt>new Date(sunset.getTime()-3*3600000))continue;
+    if(dt<now&&dt.getDate()===now.getDate())continue;
+    const s=golfScore(h.temperature_2m[i],h.wind_speed_10m[i],h.precipitation_probability[i],h.relative_humidity_2m[i],h.uv_index[i]);
+    const hr=dt.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+    let why=[];
+    if(h.temperature_2m[i]>=68&&h.temperature_2m[i]<=82)why.push('ideal temp');
+    if(h.wind_speed_10m[i]<10)why.push('calm winds');
+    if(h.precipitation_probability[i]<20)why.push('dry');
+    if(h.uv_index[i]<6)why.push('low UV');
+    slots.push({time:hr,score:s,why:why.join(', ')||'acceptable conditions'});
+  }
+  slots.sort((a,b)=>b.score-a.score);
+  const top=slots.slice(0,4);
+  document.getElementById('teeRec').innerHTML=`<h3>⛳ Best Tee Times Today</h3>`+
+    (top.length?top.map((s,i)=>`<div class="tee-slot">
+      <div class="tee-time">${s.time}</div>
+      <div class="tee-info"><div class="tee-why">${s.why}</div></div>
+      <div class="tee-score" style="color:${s.score>=80?'var(--green)':s.score>=60?'var(--accent)':'var(--gold)'}">${s.score}</div>
+    </div>`).join(''):`<p style="color:var(--muted);padding:8px 0">No ideal tee times remaining today.</p>`);
+}
+
+function renderHourly(h){
+  const now=new Date();
+  let startIdx=0;
+  for(let i=0;i<h.time.length;i++){if(new Date(h.time[i])>=now){startIdx=i;break;}}
+  const slots=[];
+  for(let i=startIdx;i<Math.min(startIdx+18,h.time.length);i++){
+    const dt=new Date(h.time[i]);
+    const s=golfScore(h.temperature_2m[i],h.wind_speed_10m[i],h.precipitation_probability[i],h.relative_humidity_2m[i],h.uv_index[i]);
+    const gc=s>=70?'golf-yes':s>=45?'golf-maybe':'golf-no';
+    const gl=s>=70?'Play':s>=45?'Maybe':'Skip';
+    slots.push(`<div class="hour-slot">
+      <div class="time">${dt.toLocaleTimeString('en-US',{hour:'numeric'})}</div>
+      <div class="icon2">${wxIcon(h.weather_code[i])}</div>
+      <div class="temp">${Math.round(h.temperature_2m[i])}°</div>
+      <div class="wind">${Math.round(h.wind_speed_10m[i])} mph</div>
+      <div class="golf-ok ${gc}">${gl}</div>
+    </div>`);
+  }
+  document.getElementById('hourly').innerHTML=slots.join('');
+}
+
+function renderForecast(d){
+  const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  let html='';
+  for(let i=0;i<7;i++){
+    const dt=new Date(d.time[i]+'T12:00:00');
+    const dayName=i===0?'Today':days[dt.getDay()];
+    const avg=(d.temperature_2m_max[i]+d.temperature_2m_min[i])/2;
+    const s=golfScore(avg,d.wind_speed_10m_max[i]*.6,d.precipitation_probability_max[i],70,d.uv_index_max[i]);
+    const gc=s>=70?'golf-yes':s>=45?'golf-maybe':'golf-no';
+    const gl=s>=70?'Great':s>=45?'Playable':'Tough';
+    html+=`<div class="day-card">
+      <div class="day-name">${dayName}</div>
+      <div class="day-date">${dt.toLocaleDateString('en-US',{month:'short',day:'numeric'})}</div>
+      <div class="day-icon">${wxIcon(d.weather_code[i])}</div>
+      <div class="day-temps">${Math.round(d.temperature_2m_max[i])}° <span>/ ${Math.round(d.temperature_2m_min[i])}°</span></div>
+      <div class="day-wind">💨 ${Math.round(d.wind_speed_10m_max[i])} mph</div>
+      <div class="day-golf"><span class="golf-ok ${gc}">${gl} (${s})</span></div>
+    </div>`;
+  }
+  document.getElementById('forecast').innerHTML=html;
+}
+
+function renderCourses(h,nowIdx){
+  const t=h.temperature_2m[nowIdx],w=h.wind_speed_10m[nowIdx],p=h.precipitation_probability[nowIdx],hu=h.relative_humidity_2m[nowIdx],u=h.uv_index[nowIdx];
+  let html='';
+  COURSES.forEach(c=>{
+    const variation=(Math.sin(c.lat*100+c.lon*100)*3);
+    const localTemp=Math.round(t+variation);
+    const localWind=Math.round(w+Math.sin(c.lon*50)*3);
+    const s=golfScore(localTemp,localWind,p,hu,u);
+    const rc=ratingClass(s);
+    const greenSpeed=((hu<60?10.5:hu<75?10:9.5)+variation*.1).toFixed(1);
+    const firmness=hu<50?'Firm':hu<70?'Normal':'Soft';
+    html+=`<div class="course-card">
+      <div class="name">${c.name}</div>
+      <div class="type">${c.type} • Par ${c.par} • ${c.yards.toLocaleString()} yds</div>
+      <div class="conditions">
+        <div class="cond-item"><div class="cond-label">Local Temp</div><div class="cond-val">${localTemp}°F</div></div>
+        <div class="cond-item"><div class="cond-label">Wind</div><div class="cond-val">${localWind} mph</div></div>
+        <div class="cond-item"><div class="cond-label">Green Speed</div><div class="cond-val">${greenSpeed} Stimp</div></div>
+        <div class="cond-item"><div class="cond-label">Fairway</div><div class="cond-val">${firmness}</div></div>
+      </div>
+      <div class="rating"><span class="rating-badge rating-${rc}">⛳ ${ratingLabel(s)} (${s})</span></div>
+    </div>`;
+  });
+  document.getElementById('courses').innerHTML=html;
+}
+
+async function init(){
+  try{
+    const data=await fetchWeather();
+    const h=data.hourly,d=data.daily;
+    const now=new Date();
+    let nowIdx=0;
+    for(let i=0;i<h.time.length;i++){if(new Date(h.time[i])>=now){nowIdx=i;break;}}
+    renderHeroStats(h,nowIdx);
+    renderGolfIndex(h,nowIdx);
+    renderSunBar(d);
+    renderTeeRec(h,d);
+    renderHourly(h);
+    renderForecast(d);
+    renderCourses(h,nowIdx);
+  }catch(e){
+    document.querySelector('.container').innerHTML=`<div style="text-align:center;padding:60px;color:var(--muted)"><p style="font-size:1.3rem">⛳</p><p>Unable to load weather data. Please refresh.</p><p style="font-size:.8rem;margin-top:8px">${e.message}</p></div>`;
+  }
+}
+init();
+setInterval(init,300000);
+</script>
+</body>
+</html>

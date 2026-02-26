@@ -90,6 +90,44 @@ header p{color:var(--muted);font-size:1rem}
 .day-card .day-temps span{color:var(--muted);font-weight:400}
 .day-card .day-wind{font-size:.78rem;color:var(--muted);margin-top:6px}
 .day-card .day-golf{margin-top:8px}
+/* Lightning Alert Styles */
+.lightning-banner{display:none;background:linear-gradient(135deg,#7f1d1d,#991b1b,#7f1d1d);border:2px solid var(--red);border-radius:14px;padding:20px 24px;margin:24px 0;animation:pulse-border 2s infinite}
+.lightning-banner.active{display:block}
+.lightning-banner.warning{background:linear-gradient(135deg,#78350f,#92400e,#78350f);border-color:var(--orange)}
+.lightning-banner .alert-header{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+.lightning-banner .alert-icon{font-size:2rem;animation:flash 1.5s infinite}
+.lightning-banner .alert-title{font-size:1.2rem;font-weight:700;color:#fca5a5}
+.lightning-banner.warning .alert-title{color:#fcd34d}
+.lightning-banner .alert-body{font-size:.9rem;color:rgba(255,255,255,.85);line-height:1.5}
+.lightning-banner .alert-meta{display:flex;gap:20px;margin-top:12px;flex-wrap:wrap}
+.lightning-banner .alert-meta-item{font-size:.78rem;color:rgba(255,255,255,.6);display:flex;align-items:center;gap:6px}
+@keyframes pulse-border{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,.4)}50%{box-shadow:0 0 20px 4px rgba(239,68,68,.2)}}
+@keyframes flash{0%,100%{opacity:1}50%{opacity:.5}}
+
+.lightning-section{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;margin:16px 0}
+.lightning-section h3{font-size:1rem;font-weight:600;margin-bottom:16px;color:var(--accent)}
+.lightning-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+.lightning-point{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center;transition:border-color .3s}
+.lightning-point.storm-active{border-color:var(--red);background:rgba(239,68,68,.08)}
+.lightning-point.storm-near{border-color:var(--orange);background:rgba(249,158,11,.06)}
+.lightning-point .lp-dir{font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px}
+.lightning-point .lp-icon{font-size:1.6rem;margin:4px 0}
+.lightning-point .lp-dist{font-size:.85rem;font-weight:600;margin-top:4px}
+.lightning-point .lp-status{font-size:.72rem;margin-top:4px;padding:2px 8px;border-radius:8px;display:inline-block}
+.lp-clear{background:rgba(34,197,94,.15);color:var(--green)}
+.lp-storm{background:rgba(239,68,68,.15);color:var(--red)}
+.lp-watch{background:rgba(249,158,11,.15);color:var(--gold)}
+.safety-tips{margin-top:16px;padding:14px;background:rgba(249,158,11,.08);border:1px solid rgba(249,158,11,.2);border-radius:10px}
+.safety-tips .tip-title{font-size:.85rem;font-weight:600;color:var(--gold);margin-bottom:8px}
+.safety-tips .tip-list{list-style:none;padding:0}
+.safety-tips .tip-list li{font-size:.8rem;color:var(--muted);padding:3px 0;padding-left:18px;position:relative}
+.safety-tips .tip-list li::before{content:'⚡';position:absolute;left:0;font-size:.7rem}
+.lightning-timeline{display:flex;gap:0;overflow-x:auto;padding:12px 0;margin-top:12px;-webkit-overflow-scrolling:touch}
+.lt-slot{min-width:60px;text-align:center;padding:10px 6px;border-right:1px solid rgba(255,255,255,.03)}
+.lt-slot .lt-time{font-size:.65rem;color:var(--muted)}
+.lt-slot .lt-icon{font-size:1.2rem;margin:4px 0}
+.lt-slot .lt-prob{font-size:.75rem;font-weight:600}
+
 .sunrise-bar{background:linear-gradient(90deg,#1a1a3e,#f59e0b33,#38bdf833,#f59e0b33,#1a1a3e);border:1px solid var(--border);border-radius:12px;padding:20px 24px;margin:16px 0;display:flex;justify-content:space-between;align-items:center}
 .sunrise-bar .sun-item{text-align:center}
 .sunrise-bar .sun-icon{font-size:1.8rem}
@@ -119,7 +157,16 @@ footer{text-align:center;padding:40px 20px;color:var(--muted);font-size:.78rem;b
 </header>
 <div class="container">
 
+<div class="lightning-banner" id="lightningBanner">
+  <div class="alert-header"><span class="alert-icon">⚡</span><span class="alert-title" id="alertTitle">Lightning Detected</span></div>
+  <div class="alert-body" id="alertBody"></div>
+  <div class="alert-meta" id="alertMeta"></div>
+</div>
+
 <div class="hero-stats" id="heroStats"></div>
+
+<div class="section-title">⚡ Lightning & Storm Proximity</div>
+<div class="lightning-section" id="lightningSec"></div>
 
 <div class="section-title">Golf Playability Index</div>
 <div class="golf-index" id="golfIndex"></div>
@@ -399,6 +446,131 @@ function renderCourses(h,nowIdx){
   document.getElementById('courses').innerHTML=html;
 }
 
+// Lightning & Storm Proximity Detection
+const STORM_GRID=[
+  {label:'North',lat:LAT+0.25,lon:LON,dir:'N'},
+  {label:'NE',lat:LAT+0.18,lon:LON+0.18,dir:'NE'},
+  {label:'East',lat:LAT,lon:LON+0.25,dir:'E'},
+  {label:'SE',lat:LAT-0.18,lon:LON+0.18,dir:'SE'},
+  {label:'South',lat:LAT-0.25,lon:LON,dir:'S'},
+  {label:'SW',lat:LAT-0.18,lon:LON-0.18,dir:'SW'},
+  {label:'West',lat:LAT,lon:LON-0.25,dir:'W'},
+  {label:'NW',lat:LAT+0.18,lon:LON-0.18,dir:'NW'}
+];
+
+function haversineMi(lat1,lon1,lat2,lon2){
+  const R=3959;const dLat=(lat2-lat1)*Math.PI/180;const dLon=(lon2-lon1)*Math.PI/180;
+  const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
+function isThunderstorm(code){return code>=95&&code<=99}
+function isStormRisk(code){return code>=80&&code<=99}
+
+async function fetchStormGrid(){
+  const promises=STORM_GRID.map(async pt=>{
+    const url=`https://api.open-meteo.com/v1/forecast?latitude=${pt.lat}&longitude=${pt.lon}&hourly=weather_code,precipitation_probability,precipitation,wind_gusts_10m&temperature_unit=fahrenheit&wind_speed_unit=mph&precipitation_unit=inch&timezone=America/New_York&forecast_hours=12`;
+    try{const r=await fetch(url);const d=await r.json();return{...pt,data:d.hourly}}catch(e){return{...pt,data:null}}
+  });
+  return Promise.all(promises);
+}
+
+function renderLightning(localHourly,nowIdx,gridData){
+  const localCode=localHourly.weather_code[nowIdx];
+  const localThunder=isThunderstorm(localCode);
+  const localRisk=isStormRisk(localCode);
+  const localPrecipProb=localHourly.precipitation_probability[nowIdx];
+
+  // Check grid points for storms
+  let nearestStorm=null;let stormCount=0;const gridResults=[];
+  gridData.forEach(pt=>{
+    if(!pt.data)return;
+    const now=new Date();let idx=0;
+    for(let i=0;i<pt.data.time.length;i++){if(new Date(pt.data.time[i])>=now){idx=i;break}}
+    const code=pt.data.weather_code[idx]||0;
+    const dist=haversineMi(LAT,LON,pt.lat,pt.lon);
+    const thunder=isThunderstorm(code);const risk=isStormRisk(code);
+    if(thunder){stormCount++;if(!nearestStorm||dist<nearestStorm.dist)nearestStorm={dir:pt.label,dist:Math.round(dist*10)/10}}
+    gridResults.push({...pt,code,thunder,risk,dist:Math.round(dist*10)/10,
+      precipProb:pt.data.precipitation_probability[idx]||0,gusts:Math.round(pt.data.wind_gusts_10m[idx]||0)});
+  });
+
+  // Banner logic
+  const banner=document.getElementById('lightningBanner');
+  if(localThunder){
+    banner.className='lightning-banner active';
+    document.getElementById('alertTitle').textContent='⛈️ LIGHTNING DETECTED — SEEK SHELTER IMMEDIATELY';
+    document.getElementById('alertBody').textContent='Thunderstorm activity detected at your location. All golf courses in the area should suspend play. Do not resume until 30 minutes after the last observed lightning or thunder.';
+    document.getElementById('alertMeta').innerHTML=`
+      <span class="alert-meta-item">🎯 Distance: At location</span>
+      <span class="alert-meta-item">💨 Gusts: ${Math.round(localHourly.wind_gusts_10m[nowIdx]||0)} mph</span>
+      <span class="alert-meta-item">🌧️ Precip: ${localHourly.precipitation_probability[nowIdx]}%</span>`;
+  }else if(nearestStorm){
+    banner.className='lightning-banner warning active';
+    document.getElementById('alertTitle').textContent=`⚠️ STORM ACTIVITY — ${nearestStorm.dist} mi ${nearestStorm.dir}`;
+    document.getElementById('alertBody').textContent=`Thunderstorm detected ${nearestStorm.dist} miles to the ${nearestStorm.dir}. ${stormCount>1?stormCount+' storm cells active in surrounding area. ':''}Monitor conditions closely — storms can move 20-40 mph. Consider completing your round or identifying nearby shelters.`;
+    document.getElementById('alertMeta').innerHTML=`
+      <span class="alert-meta-item">📡 Active cells: ${stormCount}</span>
+      <span class="alert-meta-item">📏 Nearest: ${nearestStorm.dist} mi ${nearestStorm.dir}</span>
+      <span class="alert-meta-item">⏱️ ETA: ~${Math.max(5,Math.round(nearestStorm.dist/0.5))} min (est.)</span>`;
+  }else if(localRisk||localPrecipProb>70){
+    banner.className='lightning-banner warning active';
+    document.getElementById('alertTitle').textContent='🌦️ ELEVATED STORM RISK';
+    document.getElementById('alertBody').textContent='Heavy precipitation conditions detected. While no lightning has been observed, conditions favor thunderstorm development. Stay weather-aware.';
+    document.getElementById('alertMeta').innerHTML=`<span class="alert-meta-item">🌧️ Rain probability: ${localPrecipProb}%</span>`;
+  }else{
+    banner.className='lightning-banner';
+  }
+
+  // Grid display
+  let gridHtml='<h3>⚡ Storm Proximity Radar</h3><p style="font-size:.8rem;color:var(--muted);margin-bottom:14px">Monitoring 8 surrounding grid points (~15-20 mi radius) for thunderstorm activity</p><div class="lightning-grid">';
+  gridResults.forEach(pt=>{
+    const cls=pt.thunder?'storm-active':pt.risk?'storm-near':'';
+    const icon=pt.thunder?'⛈️':pt.risk?'🌧️':pt.precipProb>40?'🌦️':'✅';
+    const statusCls=pt.thunder?'lp-storm':pt.risk?'lp-watch':'lp-clear';
+    const statusText=pt.thunder?'LIGHTNING':pt.risk?'WATCH':'Clear';
+    gridHtml+=`<div class="lightning-point ${cls}">
+      <div class="lp-dir">${pt.label} — ${pt.dist} mi</div>
+      <div class="lp-icon">${icon}</div>
+      <div class="lp-dist">Gusts: ${pt.gusts} mph</div>
+      <div class="lp-status ${statusCls}">${statusText}</div>
+    </div>`;
+  });
+  gridHtml+='</div>';
+
+  // Lightning timeline for next 12 hours
+  gridHtml+='<h3 style="margin-top:20px">Storm Risk Timeline</h3><div class="lightning-timeline">';
+  for(let i=nowIdx;i<Math.min(nowIdx+12,localHourly.time.length);i++){
+    const dt=new Date(localHourly.time[i]);
+    const code=localHourly.weather_code[i]||0;
+    const thunder=isThunderstorm(code);const risk=isStormRisk(code);
+    const icon=thunder?'⛈️':risk?'🌧️':code>50?'🌦️':'✅';
+    const prob=localHourly.precipitation_probability[i]||0;
+    const probColor=thunder?'var(--red)':risk?'var(--orange)':prob>50?'var(--gold)':'var(--green)';
+    gridHtml+=`<div class="lt-slot">
+      <div class="lt-time">${dt.toLocaleTimeString('en-US',{hour:'numeric'})}</div>
+      <div class="lt-icon">${icon}</div>
+      <div class="lt-prob" style="color:${probColor}">${prob}%</div>
+    </div>`;
+  }
+  gridHtml+='</div>';
+
+  // Safety tips
+  gridHtml+=`<div class="safety-tips">
+    <div class="tip-title">⛳ Golf Lightning Safety</div>
+    <ul class="tip-list">
+      <li>Seek shelter immediately when lightning is within 10 miles — if you hear thunder, you're at risk</li>
+      <li>Wait 30 minutes after the last lightning strike or thunder before resuming play</li>
+      <li>Avoid open fairways, isolated trees, elevated terrain, and water hazards</li>
+      <li>Head to the clubhouse, a substantial building, or a hard-topped vehicle</li>
+      <li>Drop metal clubs and remove shoes with metal spikes</li>
+      <li>If caught in the open, crouch low with feet together — do not lie flat</li>
+    </ul>
+  </div>`;
+
+  document.getElementById('lightningSec').innerHTML=gridHtml;
+}
+
 async function init(){
   try{
     const data=await fetchWeather();
@@ -413,6 +585,9 @@ async function init(){
     renderHourly(h);
     renderForecast(d);
     renderCourses(h,nowIdx);
+    // Lightning detection
+    const gridData=await fetchStormGrid();
+    renderLightning(h,nowIdx,gridData);
   }catch(e){
     document.querySelector('.container').innerHTML=`<div style="text-align:center;padding:60px;color:var(--muted)"><p style="font-size:1.3rem">⛳</p><p>Unable to load weather data. Please refresh.</p><p style="font-size:.8rem;margin-top:8px">${e.message}</p></div>`;
   }

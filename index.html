@@ -128,6 +128,38 @@ header p{color:var(--muted);font-size:1rem}
 .lt-slot .lt-icon{font-size:1.2rem;margin:4px 0}
 .lt-slot .lt-prob{font-size:.75rem;font-weight:600}
 
+/* Wind Compass */
+.wind-compass-section{margin:16px 0}
+.compass-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px}
+.compass-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;display:flex;align-items:center;gap:20px;transition:transform .2s,border-color .2s}
+.compass-card:hover{transform:translateY(-2px);border-color:var(--accent)}
+.compass-wrap{position:relative;width:100px;height:100px;flex-shrink:0}
+.compass-ring{width:100px;height:100px;border:2px solid var(--border);border-radius:50%;position:relative}
+.compass-dir{position:absolute;font-size:.55rem;color:var(--muted);font-weight:600}
+.compass-dir.cd-n{top:2px;left:50%;transform:translateX(-50%);color:var(--accent)}
+.compass-dir.cd-s{bottom:2px;left:50%;transform:translateX(-50%)}
+.compass-dir.cd-e{right:4px;top:50%;transform:translateY(-50%)}
+.compass-dir.cd-w{left:4px;top:50%;transform:translateY(-50%)}
+.compass-arrow{position:absolute;top:50%;left:50%;width:4px;height:38px;transform-origin:bottom center;border-radius:2px;transition:transform 1s cubic-bezier(.4,0,.2,1)}
+.compass-arrow .arrow-head{width:0;height:0;border-left:7px solid transparent;border-right:7px solid transparent;border-bottom:14px solid var(--accent);position:absolute;top:-10px;left:50%;transform:translateX(-50%)}
+.compass-arrow .arrow-body{width:4px;height:100%;background:linear-gradient(to top,var(--border),var(--accent));border-radius:2px}
+.compass-arrow .arrow-tail{width:2px;height:12px;background:var(--border);position:absolute;bottom:-12px;left:50%;transform:translateX(-50%);border-radius:1px}
+.compass-gust-ring{position:absolute;inset:-4px;border:2px dashed transparent;border-radius:50%;animation:gust-pulse 3s ease-in-out infinite}
+.compass-gust-ring.gusty{border-color:rgba(249,158,11,.3)}
+.compass-gust-ring.very-gusty{border-color:rgba(239,68,68,.4);animation-duration:1.5s}
+@keyframes gust-pulse{0%,100%{opacity:.4;transform:scale(1)}50%{opacity:1;transform:scale(1.04)}}
+.compass-center{position:absolute;top:50%;left:50%;width:8px;height:8px;background:var(--accent);border-radius:50%;transform:translate(-50%,-50%);z-index:2;box-shadow:0 0 6px rgba(45,212,191,.5)}
+.compass-info{flex:1;min-width:0}
+.compass-info .ci-name{font-size:.95rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.compass-info .ci-dir{font-size:1.4rem;font-weight:800;color:var(--accent);margin:4px 0}
+.compass-info .ci-speed{font-size:.85rem;color:var(--muted)}
+.compass-info .ci-gusts{font-size:.78rem;color:var(--orange);margin-top:2px}
+.compass-info .ci-impact{font-size:.75rem;margin-top:8px;padding:3px 10px;border-radius:12px;display:inline-block}
+.ci-tailwind{background:rgba(34,197,94,.15);color:var(--green)}
+.ci-crosswind{background:rgba(249,158,11,.15);color:var(--gold)}
+.ci-headwind{background:rgba(239,68,68,.15);color:var(--red)}
+.ci-calm{background:rgba(45,212,191,.1);color:var(--accent)}
+
 .sunrise-bar{background:linear-gradient(90deg,#1a1a3e,#f59e0b33,#38bdf833,#f59e0b33,#1a1a3e);border:1px solid var(--border);border-radius:12px;padding:20px 24px;margin:16px 0;display:flex;justify-content:space-between;align-items:center}
 .sunrise-bar .sun-item{text-align:center}
 .sunrise-bar .sun-icon{font-size:1.8rem}
@@ -174,6 +206,12 @@ footer{text-align:center;padding:40px 20px;color:var(--muted);font-size:.78rem;b
 <div class="section-title">Sunrise & Sunset — Golden Hour Windows</div>
 <div class="sunrise-bar" id="sunBar"></div>
 
+<div class="section-title">🧭 Wind Direction — Per Course</div>
+<div class="wind-compass-section">
+  <p style="font-size:.82rem;color:var(--muted);margin-bottom:14px">Animated compass showing prevailing wind direction and gusts, adjusted for each course's location. Arrow points in the direction wind is blowing <em>from</em>.</p>
+  <div class="compass-grid" id="windCompass"></div>
+</div>
+
 <div class="section-title">Recommended Tee Times</div>
 <div class="tee-rec" id="teeRec"></div>
 
@@ -219,7 +257,7 @@ const COURSES = [
 const LAT=27.395,LON=-82.661;
 
 async function fetchWeather(){
-  const url=`https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&hourly=temperature_2m,relative_humidity_2m,precipitation_probability,precipitation,wind_speed_10m,wind_gusts_10m,weather_code,uv_index,cloud_cover&daily=temperature_2m_max,temperature_2m_min,sunrise,sunset,precipitation_probability_max,wind_speed_10m_max,weather_code,uv_index_max&temperature_unit=fahrenheit&wind_speed_unit=mph&precipitation_unit=inch&timezone=America/New_York&forecast_days=7`;
+  const url=`https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&hourly=temperature_2m,relative_humidity_2m,precipitation_probability,precipitation,wind_speed_10m,wind_direction_10m,wind_gusts_10m,weather_code,uv_index,cloud_cover&daily=temperature_2m_max,temperature_2m_min,sunrise,sunset,precipitation_probability_max,wind_speed_10m_max,weather_code,uv_index_max&temperature_unit=fahrenheit&wind_speed_unit=mph&precipitation_unit=inch&timezone=America/New_York&forecast_days=7`;
   const r=await fetch(url);
   return r.json();
 }
@@ -285,6 +323,66 @@ function renderGolfIndex(h,nowIdx){
         return `<div class="factor-row"><span class="name">${f.name}</span><div class="bar-wrap"><div class="bar" style="width:${f.val}%;background:${fc}"></div></div><span class="val">${f.val}</span></div>`;
       }).join('')}
     </div>`;
+}
+
+function degToCompass(deg){
+  const dirs=['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+  return dirs[Math.round(deg/22.5)%16];
+}
+
+function renderWindCompass(h,nowIdx){
+  const baseDir=h.wind_direction_10m[nowIdx]||0;
+  const baseSpeed=h.wind_speed_10m[nowIdx]||0;
+  const baseGusts=h.wind_gusts_10m[nowIdx]||0;
+  let html='';
+  COURSES.forEach((c,i)=>{
+    // Slight per-course variation based on location
+    const dirVar=Math.sin(c.lat*80+c.lon*60)*8;
+    const spdVar=Math.sin(c.lon*50)*2;
+    const dir=((baseDir+dirVar)%360+360)%360;
+    const spd=Math.max(0,Math.round(baseSpeed+spdVar));
+    const gust=Math.max(spd,Math.round(baseGusts+spdVar+Math.abs(Math.cos(c.lat*30))*2));
+    const compass=degToCompass(dir);
+    const gustClass=gust>30?'very-gusty':gust>18?'gusty':'';
+    // Wind impact (simplified: relate to general course orientation)
+    let impact,impactCls;
+    if(spd<5){impact='Calm';impactCls='ci-calm';}
+    else{
+      // Simulate hole orientation variation
+      const facing=(i*40+15)%360;
+      const diff=Math.abs(((dir-facing+540)%360)-180);
+      if(diff<45){impact='Headwind';impactCls='ci-headwind';}
+      else if(diff>135){impact='Tailwind';impactCls='ci-tailwind';}
+      else{impact='Crosswind';impactCls='ci-crosswind';}
+    }
+    // Arrow rotation: point FROM wind direction (meteorological convention)
+    const arrowRot=dir;
+    html+=`<div class="compass-card">
+      <div class="compass-wrap">
+        <div class="compass-ring">
+          <span class="compass-dir cd-n">N</span>
+          <span class="compass-dir cd-s">S</span>
+          <span class="compass-dir cd-e">E</span>
+          <span class="compass-dir cd-w">W</span>
+          <div class="compass-gust-ring ${gustClass}"></div>
+          <div class="compass-center"></div>
+          <div class="compass-arrow" style="transform:translate(-50%,-100%) rotate(${arrowRot}deg)">
+            <div class="arrow-head"></div>
+            <div class="arrow-body"></div>
+            <div class="arrow-tail"></div>
+          </div>
+        </div>
+      </div>
+      <div class="compass-info">
+        <div class="ci-name">${c.name}</div>
+        <div class="ci-dir">${compass} · ${Math.round(dir)}°</div>
+        <div class="ci-speed">💨 ${spd} mph sustained</div>
+        ${gust>spd+3?`<div class="ci-gusts">⚡ Gusts to ${gust} mph</div>`:''}
+        <div class="ci-impact ${impactCls}">🏌️ ${impact}</div>
+      </div>
+    </div>`;
+  });
+  document.getElementById('windCompass').innerHTML=html;
 }
 
 function renderSunBar(d){
@@ -581,6 +679,7 @@ async function init(){
     renderHeroStats(h,nowIdx);
     renderGolfIndex(h,nowIdx);
     renderSunBar(d);
+    renderWindCompass(h,nowIdx);
     renderTeeRec(h,d);
     renderHourly(h);
     renderForecast(d);

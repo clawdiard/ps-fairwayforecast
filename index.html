@@ -47,6 +47,22 @@ header p{color:var(--muted);font-size:1rem}
 .cond-item .cond-val{font-size:1rem;font-weight:600;margin-top:2px}
 .course-card .rating{display:flex;align-items:center;gap:8px;margin-top:14px;padding-top:12px;border-top:1px solid var(--border)}
 .rating-badge{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;font-size:.8rem;font-weight:600}
+.course-status-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;margin:16px 0}
+.status-item{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 18px;display:flex;align-items:center;gap:14px;transition:transform .2s}
+.status-item:hover{transform:translateY(-2px)}
+.status-item .status-icon{font-size:1.6rem;width:40px;text-align:center}
+.status-item .status-info{flex:1}
+.status-item .status-name{font-size:.95rem;font-weight:600}
+.status-item .status-detail{font-size:.78rem;color:var(--muted);margin-top:2px}
+.status-badge{display:inline-flex;align-items:center;gap:5px;padding:4px 12px;border-radius:20px;font-size:.78rem;font-weight:600;white-space:nowrap}
+.status-open{background:rgba(34,197,94,.15);color:var(--green)}
+.status-cart-path{background:rgba(249,158,11,.15);color:var(--gold)}
+.status-closed{background:rgba(239,68,68,.15);color:var(--red)}
+.status-delay{background:rgba(56,189,248,.15);color:var(--accent2)}
+.status-legend{display:flex;gap:16px;flex-wrap:wrap;margin:12px 0 8px;padding:10px 16px;background:var(--surface);border-radius:10px;border:1px solid var(--border)}
+.status-legend .legend-item{display:flex;align-items:center;gap:6px;font-size:.78rem;color:var(--muted)}
+.status-legend .legend-dot{width:8px;height:8px;border-radius:50%}
+.status-updated{text-align:right;font-size:.7rem;color:var(--muted);margin-top:8px;font-style:italic}
 .rating-excellent{background:rgba(34,197,94,.15);color:var(--green)}
 .rating-good{background:rgba(45,212,191,.15);color:var(--accent)}
 .rating-fair{background:rgba(249,158,11,.15);color:var(--gold)}
@@ -119,6 +135,16 @@ footer{text-align:center;padding:40px 20px;color:var(--muted);font-size:.78rem;b
 
 <div class="section-title">7-Day Outlook</div>
 <div class="forecast-days" id="forecast"></div>
+
+<div class="section-title">Course Status — Live Estimates</div>
+<div class="status-legend">
+  <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div> Open</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--gold)"></div> Cart Path Only</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--accent2)"></div> Delayed Open</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--red)"></div> Closed</div>
+</div>
+<div class="course-status-grid" id="courseStatus"></div>
+<div class="status-updated" id="statusUpdated"></div>
 
 <div class="section-title">Course Conditions</div>
 <div class="courses-grid" id="courses"></div>
@@ -299,8 +325,54 @@ function renderForecast(d){
 
 function renderCourses(h,nowIdx){
   const t=h.temperature_2m[nowIdx],w=h.wind_speed_10m[nowIdx],p=h.precipitation_probability[nowIdx],hu=h.relative_humidity_2m[nowIdx],u=h.uv_index[nowIdx];
-  let html='';
+  const precip=h.precipitation[nowIdx]||0;
+  const gusts=h.wind_gusts_10m[nowIdx]||w;
+  const wxCode=h.weather_code[nowIdx]||0;
+
+  // Recent precipitation: check last 3 hours
+  let recentPrecip=0;
+  for(let j=Math.max(0,nowIdx-3);j<=nowIdx;j++){recentPrecip+=(h.precipitation[j]||0);}
+
+  // Course status determination
+  function getCourseStatus(course,localWind){
+    const isThunder=wxCode>=95;
+    const heavyRain=wxCode>=63||precip>0.3;
+    const modRain=wxCode>=51||precip>0.1;
+    const highWind=gusts>45||localWind>35;
+    const veryWet=recentPrecip>0.5;
+    const damp=recentPrecip>0.15;
+
+    if(isThunder||highWind)return{status:'closed',label:'Closed',icon:'🚫',reason:isThunder?'Lightning in area':'Dangerous wind conditions',cls:'status-closed'};
+    if(heavyRain)return{status:'closed',label:'Closed',icon:'🚫',reason:'Heavy rain — course unplayable',cls:'status-closed'};
+    if(veryWet&&modRain)return{status:'closed',label:'Closed',icon:'🚫',reason:'Saturated conditions',cls:'status-closed'};
+    if(modRain&&p>70)return{status:'delay',label:'Delayed Open',icon:'⏳',reason:'Rain expected to clear — monitoring',cls:'status-delay'};
+    if(veryWet||damp)return{status:'cart-path',label:'Cart Path Only',icon:'🛒',reason:'Wet fairways — protecting turf',cls:'status-cart-path'};
+    if(p>80)return{status:'cart-path',label:'Cart Path Only',icon:'🛒',reason:'High rain probability — precautionary',cls:'status-cart-path'};
+    return{status:'open',label:'Open',icon:'✅',reason:'Normal operations',cls:'status-open'};
+  }
+
+  // Render status grid
+  let statusHtml='';
+  const statuses=[];
   COURSES.forEach(c=>{
+    const localWind=Math.round(w+Math.sin(c.lon*50)*3);
+    const st=getCourseStatus(c,localWind);
+    statuses.push(st);
+    statusHtml+=`<div class="status-item">
+      <div class="status-icon">${st.icon}</div>
+      <div class="status-info">
+        <div class="status-name">${c.name}</div>
+        <div class="status-detail">${st.reason}</div>
+      </div>
+      <span class="status-badge ${st.cls}">${st.label}</span>
+    </div>`;
+  });
+  document.getElementById('courseStatus').innerHTML=statusHtml;
+  document.getElementById('statusUpdated').textContent='Status estimated from live weather data • Updated '+new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+
+  // Render course condition cards (with status badge added)
+  let html='';
+  COURSES.forEach((c,idx)=>{
     const variation=(Math.sin(c.lat*100+c.lon*100)*3);
     const localTemp=Math.round(t+variation);
     const localWind=Math.round(w+Math.sin(c.lon*50)*3);
@@ -308,9 +380,13 @@ function renderCourses(h,nowIdx){
     const rc=ratingClass(s);
     const greenSpeed=((hu<60?10.5:hu<75?10:9.5)+variation*.1).toFixed(1);
     const firmness=hu<50?'Firm':hu<70?'Normal':'Soft';
+    const st=statuses[idx];
     html+=`<div class="course-card">
-      <div class="name">${c.name}</div>
-      <div class="type">${c.type} • Par ${c.par} • ${c.yards.toLocaleString()} yds</div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px">
+        <div><div class="name">${c.name}</div>
+        <div class="type">${c.type} • Par ${c.par} • ${c.yards.toLocaleString()} yds</div></div>
+        <span class="status-badge ${st.cls}" style="flex-shrink:0;margin-left:8px">${st.icon} ${st.label}</span>
+      </div>
       <div class="conditions">
         <div class="cond-item"><div class="cond-label">Local Temp</div><div class="cond-val">${localTemp}°F</div></div>
         <div class="cond-item"><div class="cond-label">Wind</div><div class="cond-val">${localWind} mph</div></div>
